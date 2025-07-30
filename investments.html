@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portfolio Tracker</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #F0F0F0; /* Updated background color from image */
+        }
+        
+        table {
+            border-collapse: collapse;
+            width: 650px;
+        }
+        
+        td {
+            border: 1px solid #b3adad;
+            padding: 8px;
+            text-align: center;
+            height: 40px;
+        }
+        
+        .stock-name {
+            text-align: left;
+            padding-left: 15px;
+            font-weight: bold;
+        }
+        
+        .annual-returns {
+            width: 100px;
+        }
+        
+        .chart-cell {
+            width: 100px;
+        }
+        
+        .chart {
+            width: 100%;
+            height: 30px;
+            display: block;
+            background-size: contain;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+        
+        .chart-stock-a {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 30'%3E%3Cpath d='M0,15 C10,5 20,25 30,15 C40,5 50,25 60,15 C70,5 80,25 90,15 L90,30 L0,30 Z' fill='%23f0f8ff' stroke='%234169e1' stroke-width='2'/%3E%3C/svg%3E");
+        }
+        
+        .chart-stock-b {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 30'%3E%3Cpath d='M0,15 C10,10 20,20 30,15 C40,10 50,20 60,15 C70,10 80,20 90,15 L90,30 L0,30 Z' fill='%23f0f8ff' stroke='%234169e1' stroke-width='2'/%3E%3C/svg%3E");
+        }
+        
+        .chart-stock-c {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 30'%3E%3Cpath d='M0,15 C10,12 20,18 30,15 C40,12 50,18 60,15 C70,12 80,18 90,15 L90,30 L0,30 Z' fill='%23f0f8ff' stroke='%234169e1' stroke-width='2'/%3E%3C/svg%3E");
+        }
+        
+        .highlight {
+            color: #4169e1;
+        }
+        
+        input {
+            border: none;
+            background-color: #e6f0ff;
+            color: #4169e1;
+            text-align: center;
+            font-family: Arial, sans-serif;
+            width: 90%;
+            padding: 5px;
+        }
+        
+        input:focus {
+            outline: 1px solid #4169e1;
+        }
+        
+        .company-logo {
+            width: 60px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .logo-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .logo-row {
+            display: flex;
+            align-items: center;
+            margin: 2px 0;
+        }
+        
+        .logo-text {
+            font-size: 12px;
+            margin-left: 4px;
+        }
+        
+        select {
+            font-size: 10px;
+            margin-left: 4px;
+            width: 60px;
+        }
+        
+        button {
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 0;
+            margin: 0;
+            width: 20px;
+            height: 20px;
+        }
+        
+        .user-input-cell {
+            background-color: #e6f0ff;
+            font-weight: bold;
+        }
+        
+        .trial-value {
+            color: #0000FF;
+        }
+        
+        .dollar {
+            color: #4169e1;
+        }
+        
+        .empty-cell {
+            border: none;
+        }
+    </style>
+</head>
+<body>
+    <table id="investmentTable">
+        <tr>
+            <td class="empty-cell">
+            </td>
+            <td colspan="2">Annual Returns</td>
+            <td>Initial</td>
+            <td>Value in</td>
+            <td></td>
+            <td></td>
+        </tr>
+        <tr>
+            <td class="empty-cell">
+            </td>
+            <td><button id="Stock_Returns" class="sipmath-loader" style="width: 100px; height: 35px; padding: 5px; font-size: 12px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;">Load Stock_Returns</button></td>
+            <td><button id="Stock_Returns2" class="sipmath-loader" style="width: 100px; height: 35px; padding: 5px; font-size: 12px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;">Load Stock_Returns2</button></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+        <tr>
+            <td class="empty-cell"></td>
+            <td>Trial <span id="trial-number">1</span></td>
+            <td>Average</td>
+            <td>Investment</td>
+            <td>One Year</td>
+            <td></td>
+            <td></td>
+        </tr>
+        <tr>
+            <td class="stock-name" data-stock-id="A">Stock_A</td>
+            <td class="chart-cell"><span class="trial-value"></span></td>
+            <td class="highlight"></td>
+            <td style="background-color: #e6f0ff;"><input type="text" id="initial-a" value="$" class="initial-input"></td>
+            <td id="value-a"></td>
+            <td></td>
+            <td></td>
+            <td><input type="number" id="trial-select" min="1" max="10000" value="1" style="width: 60px;"></td>
+        </tr>
+        <tr>
+            <td class="stock-name" data-stock-id="B">Stock_B</td>
+            <td class="chart-cell"><span class="trial-value"></span></td>
+            <td class="highlight"></td>
+            <td style="background-color: #e6f0ff;"><input type="text" id="initial-b" value="$" class="initial-input"></td>
+            <td id="value-b"></td>
+            <td></td>
+            <td></td>
+        </tr>
+        <tr>
+            <td class="stock-name" data-stock-id="C">Stock_C</td>
+            <td class="chart-cell"><span class="trial-value"></span></td>
+            <td class="highlight"></td>
+            <td style="background-color: #e6f0ff;"><input type="text" id="initial-c" value="$" class="initial-input"></td>
+            <td id="value-c"></td>
+            <td></td>
+            <td></td>
+        </tr>
+        <tr>
+            <td class="empty-cell" colspan="2"></td>
+            <td>Portfolio</td>
+            <td id="initial-total"></td>
+            <td class="highlight" id="current-total"></td>
+            <td><input type="text" id="comparison-operator" value="<" style="width: 30px;"></td>
+            <td><input type="text" id="target-value" value="" style="width: 60px;"></td>
+            <td colspan="1">Chance <span id="percent-return" class="highlight"></span></td>
+        </tr>
+        <tr>
+            <td class="empty-cell" colspan="2"></td>
+            <td>Average</td>
+            <td class="highlight" id="average-portfolio-value"></td>
+        </tr>
+        <tr>
+            <td colspan="7" style="text-align: center; border: none; padding-top: 20px;">
+                <img src="BottomGraphic.png" alt="Bottom Graphic" style="max-width: 100%;">
+            </td>
+        </tr>
+    </table>
+    <div id="uploadStatus" style="color: red; margin-top: 20px; text-align: center;"></div>
+    <script src="newApp.js"></script> <!-- Load app logic as a module -->
+    <!-- Removed inline script block. All logic is now in newApp.js -->
+
+    <!-- SIPmath file loaders -->
+    <!-- Duplicate buttons removed -->
+</body>
+</html>
