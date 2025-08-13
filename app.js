@@ -1157,6 +1157,8 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
+
+
 function loadLibraryFromPopup() {
     const fileOption = document.getElementById("fileOption");
     const urlInput = document.getElementById("urlInput");
@@ -1181,8 +1183,186 @@ function loadLibraryFromPopup() {
             alert("Please select a file first.");
         }
     } else {
-        // Max: handle link input here
-        alert("URL input functionality not yet implemented.");
+        // URL input path
+        const rawUrl = (urlInput.value || '').trim();
+        if (!rawUrl) {
+            alert('Please enter a URL.');
+            return;
+        }
+        loadLibraryFromUrlWithRetry(rawUrl)
+            .then((libraryJson) => {
+                processLibraryJson(libraryJson);
+                hideLibraryPopup();
+            })
+            .catch((error) => {
+                alert(error.message || 'Failed to load library from URL.');
+            });
+    }
+}
+
+// Intercept same-origin links to SIP files and load inline instead of navigating
+(function setupSameOriginSipLinkInterceptor() {
+    document.addEventListener('click', function(e) {
+        const anchor = e.target && e.target.closest ? e.target.closest('a[href]') : null;
+        if (!anchor) return;
+        const href = anchor.getAttribute('href');
+        if (!href) return;
+        let resolved;
+        try {
+            resolved = new URL(href, window.location.href);
+        } catch (err) {
+            return;
+        }
+        const pathLower = (resolved.pathname || '').toLowerCase();
+        const looksLikeSip = pathLower.endsWith('.sipmath') || pathLower.endsWith('.json');
+        const sameOrigin = resolved.origin === window.location.origin;
+        if (sameOrigin && looksLikeSip) {
+            e.preventDefault();
+            loadLibraryFromUrlWithRetry(resolved.href)
+                .then((libraryJson) => {
+                    processLibraryJson(libraryJson);
+                })
+                .catch((error) => {
+                    alert(error.message || 'Failed to load SIP from link.');
+                });
+        }
+    }, true);
+})();
+
+// Auto-load from URL parameter (?sip=...)
+(function setupSipUrlParamLoader() {
+    document.addEventListener('DOMContentLoaded', function() {
+        const params = new URLSearchParams(window.location.search);
+        const sipParam = params.get('sip');
+        if (!sipParam) return;
+        loadLibraryFromUrlWithRetry(sipParam)
+            .then((libraryJson) => {
+                processLibraryJson(libraryJson);
+            })
+            .catch((error) => {
+                console.warn('Failed to auto-load SIP from URL parameter:', error);
+                alert(error.message || 'Failed to auto-load SIP from URL parameter.');
+            });
+    });
+})();
+
+// New function to load SIP library from URL
+async function loadLibraryFromUrl(url) {
+    try {
+        // Validate URL format (supports relative and absolute)
+        const urlObj = new URL(url, window.location.href);
+        
+        // Check for common hosting platforms and adjust URL if needed
+        const adjustedUrl = adjustUrlForHostingPlatform(urlObj.href);
+        
+        // Fetch the SIP file
+        const response = await fetch(adjustedUrl, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json, text/plain, */*',
+            },
+            signal: AbortSignal.timeout(30000)
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status} - ${response.statusText}`);
+        }
+        
+        const contentType = response.headers.get('content-type');
+        if (!contentType || (!contentType.includes('application/json') && !contentType.includes('text/plain'))) {
+            console.warn('Warning: Unexpected content type:', contentType);
+        }
+        
+        const text = await response.text();
+        
+        try {
+            const libraryJson = JSON.parse(text);
+            return libraryJson;
+        } catch (parseError) {
+            return parseSIPmathFormat(text);
+        }
+        
+    } catch (error) {
+        if (error.name === 'AbortError') {
+            throw new Error('Request timed out. Please check the URL and try again.');
+        } else if (error.name === 'TypeError' && error.message.includes('fetch')) {
+            throw new Error('Network error. Please check your internet connection and the URL.');
+        } else if (error.name === 'TypeError' && error.message.includes('URL')) {
+            throw new Error('Invalid URL format. Please enter a valid URL.');
+        } else {
+            throw new Error(`Failed to load library: ${error.message}`);
+        }
+    }
+}
+
+// Function to adjust URLs for common hosting platforms
+function adjustUrlForHostingPlatform(url) {
+    const urlObj = new URL(url, window.location.href);
+    
+    // GitHub raw content
+    if (urlObj.hostname === 'github.com') {
+        return url.replace('github.com', 'raw.githubusercontent.com').replace('/blob/', '/');
+    }
+    
+    // GitLab raw content
+    if (urlObj.hostname === 'gitlab.com') {
+        return url.replace('/blob/', '/raw/');
+    }
+    
+    // Dropbox direct link
+    if (urlObj.hostname === 'www.dropbox.com') {
+        return url.replace('www.dropbox.com', 'dl.dropboxusercontent.com');
+    }
+    
+    // Google Drive direct link (basic support)
+    if (urlObj.hostname === 'drive.google.com' && urlObj.pathname.includes('/file/d/')) {
+        const fileId = urlObj.pathname.match(/\/file\/d\/([^\/]+)/)?.[1];
+        if (fileId) {
+            return `https://drive.google.com/uc?export=download&id=${fileId}`;
+        }
+    }
+    
+    // Return original URL if no adjustments needed
+    return urlObj.href;
+}
+
+// Enhanced error handling with retry logic
+async function loadLibraryFromUrlWithRetry(url, maxRetries = 2) {
+    let lastError;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            return await loadLibraryFromUrl(url);
+        } catch (error) {
+            lastError = error;
+            console.warn(`Attempt ${attempt} failed:`, error.message);
+            
+            if (attempt < maxRetries) {
+                // Wait before retrying (exponential backoff)
+                await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+            }
+        }
+    }
+    
+    throw lastError;
+}
+
+// Function to parse SIPmath format (if needed)
+function parseSIPmathFormat(text) {
+    // This is a basic implementation - you may need to enhance it based on your SIPmath format
+    try {
+        // Try to extract JSON from SIPmath format
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+            return JSON.parse(jsonMatch[0]);
+        }
+        
+        // If no JSON found, try to parse as plain SIPmath
+        // This would need to be customized based on your specific SIPmath format
+        throw new Error('SIPmath format parsing not yet implemented for this format');
+        
+    } catch (error) {
+        throw new Error('Unable to parse the file format. Please ensure it\'s a valid SIP library file.');
     }
 }
 

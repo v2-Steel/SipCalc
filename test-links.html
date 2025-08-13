@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test SIP Links - SipCalc</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 20px; border: 1px solid #ccc; border-radius: 5px; }
+        .test-link { display: inline-block; margin: 10px; padding: 10px 15px; background: #007bff; color: white; text-decoration: none; border-radius: 3px; }
+        .test-link:hover { background: #0056b3; }
+        .note { background: #fff3cd; border: 1px solid #ffeaa7; padding: 10px; border-radius: 3px; margin: 10px 0; }
+        .calculator-link { background: #28a745; }
+        .calculator-link:hover { background: #1e7e34; }
+    </style>
+</head>
+<body>
+    <h1>Testing SIP Link Handling</h1>
+    
+    <div class="note">
+        <strong>Note:</strong> This page tests the same-origin link interception. 
+        Clicking SIP links should load them into the calculator without navigating away.
+    </div>
+
+    <div class="test-section">
+        <h2>Test Same-Origin SIP Links</h2>
+        <p>These links should be intercepted and load SIP data into the calculator:</p>
+        
+        <a href="uniform.sipmath" class="test-link">uniform.sipmath</a>
+        <a href="uniform2.sipmath" class="test-link">uniform2.sipmath</a>
+        <a href="uniform3.sipmath" class="test-link">uniform3.sipmath</a>
+        <a href="Stock_Returns.SIPmath" class="test-link">Stock_Returns.SIPmath</a>
+        
+        <p><strong>Expected behavior:</strong> Clicking these links should load the SIP library into the calculator without navigating away from this page.</p>
+    </div>
+
+    <div class="test-section">
+        <h2>Test Deep Linking</h2>
+        <p>These links open the calculator with a pre-loaded SIP library:</p>
+        
+        <a href="index.html?sip=uniform.sipmath" class="test-link calculator-link">Calculator + uniform.sipmath</a>
+        <a href="index.html?sip=Stock_Returns.SIPmath" class="test-link calculator-link">Calculator + Stock_Returns.SIPmath</a>
+        
+        <p><strong>Expected behavior:</strong> These should open the calculator and automatically load the specified SIP library.</p>
+    </div>
+
+    <div class="test-section">
+        <h2>Test External Links (Should Navigate Normally)</h2>
+        <p>These links should navigate normally (not be intercepted):</p>
+        
+        <a href="https://github.com" class="test-link" target="_blank">GitHub (external)</a>
+        <a href="style.css" class="test-link">style.css (not SIP)</a>
+        
+        <p><strong>Expected behavior:</strong> These should navigate normally or open in new tabs.</p>
+    </div>
+
+    <div class="test-section">
+        <h2>Open Calculator</h2>
+        <a href="index.html" class="test-link calculator-link">Open SipCalc Calculator</a>
+    </div>
+
+    <script>
+        // Add some visual feedback for testing
+        document.addEventListener('click', function(e) {
+            if (e.target.tagName === 'A' && e.target.href) {
+                const href = e.target.href;
+                if (href.includes('.sipmath') || href.includes('.SIPmath')) {
+                    console.log('SIP link clicked:', href);
+                    // Add visual feedback
+                    e.target.style.background = '#ffc107';
+                    setTimeout(() => {
+                        e.target.style.background = '';
+                    }, 1000);
+                }
+            }
+        });
+    </script>
+</body>
+</html> 
