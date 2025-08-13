@@ -1288,23 +1288,62 @@ if (document.readyState === 'loading') {
     setupSipUrlParamLoader();
 }
 
-// Test fetch functionality
+// Test fetch functionality with multiple approaches
 function testFetch() {
     console.log('Testing fetch functionality...');
     console.log('fetch available:', typeof fetch !== 'undefined');
     console.log('AbortSignal.timeout available:', typeof AbortSignal !== 'undefined' && AbortSignal.timeout);
     
-    // Try a simple fetch to see if it works
+    // Test 1: Basic fetch
+    console.log('Test 1: Basic fetch');
     fetch('./uniform.sipmath')
         .then(response => {
-            console.log('Test fetch successful:', response.status, response.statusText);
+            console.log('Test 1 successful:', response.status, response.statusText);
             return response.text();
         })
         .then(text => {
-            console.log('Test fetch content length:', text.length);
+            console.log('Test 1 content length:', text.length);
         })
         .catch(error => {
-            console.error('Test fetch failed:', error);
+            console.error('Test 1 failed:', error);
+            
+            // Test 2: Try with different headers
+            console.log('Test 2: Fetch with different headers');
+            fetch('./uniform.sipmath', {
+                method: 'GET',
+                headers: {
+                    'Accept': '*/*',
+                    'Cache-Control': 'no-cache'
+                }
+            })
+            .then(response => {
+                console.log('Test 2 successful:', response.status, response.statusText);
+                return response.text();
+            })
+            .then(text => {
+                console.log('Test 2 content length:', text.length);
+            })
+            .catch(error2 => {
+                console.error('Test 2 failed:', error2);
+                
+                // Test 3: Try absolute path
+                console.log('Test 3: Absolute path fetch');
+                const absoluteUrl = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '/') + 'uniform.sipmath';
+                console.log('Trying absolute URL:', absoluteUrl);
+                
+                fetch(absoluteUrl)
+                .then(response => {
+                    console.log('Test 3 successful:', response.status, response.statusText);
+                    return response.text();
+                })
+                .then(text => {
+                    console.log('Test 3 content length:', text.length);
+                })
+                .catch(error3 => {
+                    console.error('Test 3 failed:', error3);
+                    console.log('All fetch tests failed. Consider using XMLHttpRequest fallback.');
+                });
+            });
         });
 }
 
@@ -1331,59 +1370,12 @@ async function loadLibraryFromUrl(url) {
         const adjustedUrl = adjustUrlForHostingPlatform(urlObj.href);
         console.log('Adjusted URL:', adjustedUrl);
         
-        // Fetch the SIP file
-        console.log('Fetching from:', adjustedUrl);
-        
-        let response;
-        
-        // Try to use AbortSignal.timeout if available, otherwise use AbortController
-        if (typeof AbortSignal !== 'undefined' && AbortSignal.timeout) {
-            // Modern browsers support AbortSignal.timeout
-            response = await fetch(adjustedUrl, {
-                method: 'GET',
-                headers: {
-                    'Accept': 'application/json, text/plain, */*',
-                },
-                signal: AbortSignal.timeout(30000)
-            });
-        } else {
-            // Fallback for older browsers
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 30000);
-            
-            try {
-                response = await fetch(adjustedUrl, {
-                    method: 'GET',
-                    headers: {
-                        'Accept': 'application/json, text/plain, */*',
-                    },
-                    signal: controller.signal
-                });
-            } finally {
-                clearTimeout(timeoutId);
-            }
-        }
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status} - ${response.statusText}`);
-        }
-        
-        const contentType = response.headers.get('content-type');
-        console.log('Content-Type:', contentType);
-        if (!contentType || (!contentType.includes('application/json') && !contentType.includes('text/plain'))) {
-            console.warn('Warning: Unexpected content type:', contentType);
-        }
-        
-        const text = await response.text();
-        console.log('Response length:', text.length, 'characters');
-        
+        // Try fetch first, then fallback to XMLHttpRequest
         try {
-            const libraryJson = JSON.parse(text);
-            console.log('Successfully parsed as JSON');
-            return libraryJson;
-        } catch (parseError) {
-            console.log('JSON parsing failed, trying SIPmath format');
-            return parseSIPmathFormat(text);
+            return await loadWithFetch(adjustedUrl);
+        } catch (fetchError) {
+            console.log('Fetch failed, trying XMLHttpRequest:', fetchError.message);
+            return await loadWithXMLHttpRequest(adjustedUrl);
         }
         
     } catch (error) {
@@ -1406,6 +1398,113 @@ async function loadLibraryFromUrl(url) {
             throw new Error(`Failed to load library: ${error.message}`);
         }
     }
+}
+
+// Load using fetch API
+async function loadWithFetch(url) {
+    console.log('Attempting fetch from:', url);
+    
+    let response;
+    
+    // Try to use AbortSignal.timeout if available, otherwise use AbortController
+    if (typeof AbortSignal !== 'undefined' && AbortSignal.timeout) {
+        // Modern browsers support AbortSignal.timeout
+        response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json, text/plain, */*',
+            },
+            signal: AbortSignal.timeout(30000)
+        });
+    } else {
+        // Fallback for older browsers
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
+        
+        try {
+            response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json, text/plain, */*',
+                },
+                signal: controller.signal
+            });
+        } finally {
+            clearTimeout(timeoutId);
+        }
+    }
+    
+    if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status} - ${response.statusText}`);
+    }
+    
+    const contentType = response.headers.get('content-type');
+    console.log('Content-Type:', contentType);
+    if (!contentType || (!contentType.includes('application/json') && !contentType.includes('text/plain'))) {
+        console.warn('Warning: Unexpected content type:', contentType);
+    }
+    
+    const text = await response.text();
+    console.log('Response length:', text.length, 'characters');
+    
+    try {
+        const libraryJson = JSON.parse(text);
+        console.log('Successfully parsed as JSON');
+        return libraryJson;
+    } catch (parseError) {
+        console.log('JSON parsing failed, trying SIPmath format');
+        return parseSIPmathFormat(text);
+    }
+}
+
+// Load using XMLHttpRequest (fallback)
+function loadWithXMLHttpRequest(url) {
+    return new Promise((resolve, reject) => {
+        console.log('Attempting XMLHttpRequest from:', url);
+        
+        const xhr = new XMLHttpRequest();
+        const timeout = setTimeout(() => {
+            xhr.abort();
+            reject(new Error('Request timed out'));
+        }, 30000);
+        
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === 4) {
+                clearTimeout(timeout);
+                
+                if (xhr.status === 200) {
+                    console.log('XMLHttpRequest successful:', xhr.status, xhr.statusText);
+                    console.log('Content-Type:', xhr.getResponseHeader('content-type'));
+                    console.log('Response length:', xhr.responseText.length, 'characters');
+                    
+                    try {
+                        const libraryJson = JSON.parse(xhr.responseText);
+                        console.log('Successfully parsed as JSON via XMLHttpRequest');
+                        resolve(libraryJson);
+                    } catch (parseError) {
+                        console.log('JSON parsing failed, trying SIPmath format via XMLHttpRequest');
+                        resolve(parseSIPmathFormat(xhr.responseText));
+                    }
+                } else {
+                    reject(new Error(`HTTP error! status: ${xhr.status} - ${xhr.statusText}`));
+                }
+            }
+        };
+        
+        xhr.onerror = function() {
+            clearTimeout(timeout);
+            reject(new Error('Network error occurred'));
+        };
+        
+        xhr.ontimeout = function() {
+            clearTimeout(timeout);
+            reject(new Error('Request timed out'));
+        };
+        
+        xhr.open('GET', url, true);
+        xhr.setRequestHeader('Accept', 'application/json, text/plain, */*');
+        xhr.send();
+    });
 }
 
 // Function to adjust URLs for common hosting platforms
