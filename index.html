@@ -145,7 +145,7 @@
             <img style="width: 100%;" src="./PM Logo 211211211.png">
         </div>
 
-        <div class="loadLibrary" onclick="showLibraryPopup()">
+        <div class="loadLibrary" id="loadLibraryBtn">
             <div id="lib">
                 <input style="display: none;" type="file" id="copulaInput" accept=".json, .sipmath">
                 <img src="./logo.png" style="height:40px;">
@@ -165,7 +165,7 @@
         <div class="popup-content">
             <div class="popup-header">
                 <h2>Load SIPmath Library</h2>
-                <button class="close-btn" onclick="hideLibraryPopup()">&times;</button>
+                <button class="close-btn" id="closePopupBtn">&times;</button>
             </div>
             <div class="popup-body">
                 <div class="input-section">
@@ -185,7 +185,7 @@
                 <div id="fileSection" class="input-section">
                     <h3>Select File:</h3>
                     <input type="file" id="popupFileInput" accept=".json, .sipmath" style="display: none;">
-                    <button class="file-select-btn" onclick="document.getElementById('popupFileInput').click()">
+                    <button class="file-select-btn" id="chooseFileBtn">
                         Choose File
                     </button>
                     <div id="selectedFileName" class="selected-file"></div>
@@ -197,8 +197,8 @@
                 </div>
                 
                 <div class="popup-actions">
-                    <button class="cancel-btn" onclick="hideLibraryPopup()">Cancel</button>
-                    <button class="load-btn" onclick="loadLibraryFromPopup()">Load Library</button>
+                    <button class="cancel-btn" id="cancelBtn">Cancel</button>
+                    <button class="load-btn" id="loadBtn">Load Library</button>
                 </div>
             </div>
         </div>

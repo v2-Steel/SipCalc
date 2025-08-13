@@ -63,11 +63,27 @@ function handleFileUpload(index) {
     }
 }
 
+// Safe comparison function to replace eval()
+function safeCompare(value1, operator, value2) {
+    const num1 = parseFloat(value1);
+    const num2 = parseFloat(value2);
+    
+    switch(operator) {
+        case '>': return num1 > num2;
+        case '<': return num1 < num2;
+        case '>=': return num1 >= num2;
+        case '<=': return num1 <= num2;
+        case '==': return num1 === num2;
+        case '!=': return num1 !== num2;
+        default: return false;
+    }
+}
+
 document.getElementById("chanceInput").addEventListener("change", () => {
     let num = document.getElementById("chanceInput").value
     numGreater = 0;
     for(let i = 0; i<resultDist.length; i++){
-        if(eval(resultDist[i] + cowSign + num)){
+        if(safeCompare(resultDist[i], cowSign, num)){
             numGreater++;
         }
     }
@@ -264,7 +280,7 @@ $('.cowSign').click(function () {
         let num = document.getElementById("chanceInput").value
         numGreater = 0;
         for(let i = 0; i<resultDist.length; i++){
-            if(eval(resultDist[i] + cowSign + num)){
+            if(safeCompare(resultDist[i], cowSign, num)){
                 numGreater++;
             }
         }
@@ -1304,6 +1320,48 @@ if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', setupSipUrlParamLoader);
 } else {
     setupSipUrlParamLoader();
+}
+
+// Setup event listeners for popup elements (CSP-compliant)
+function setupPopupEventListeners() {
+    // Load Library button
+    const loadLibraryBtn = document.getElementById('loadLibraryBtn');
+    if (loadLibraryBtn) {
+        loadLibraryBtn.addEventListener('click', showLibraryPopup);
+    }
+    
+    // Close popup button
+    const closePopupBtn = document.getElementById('closePopupBtn');
+    if (closePopupBtn) {
+        closePopupBtn.addEventListener('click', hideLibraryPopup);
+    }
+    
+    // Choose file button
+    const chooseFileBtn = document.getElementById('chooseFileBtn');
+    if (chooseFileBtn) {
+        chooseFileBtn.addEventListener('click', () => {
+            document.getElementById('popupFileInput').click();
+        });
+    }
+    
+    // Cancel button
+    const cancelBtn = document.getElementById('cancelBtn');
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', hideLibraryPopup);
+    }
+    
+    // Load button
+    const loadBtn = document.getElementById('loadBtn');
+    if (loadBtn) {
+        loadBtn.addEventListener('click', loadLibraryFromPopup);
+    }
+}
+
+// Initialize popup event listeners when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupPopupEventListeners);
+} else {
+    setupPopupEventListeners();
 }
 
 // Test fetch functionality with multiple approaches
