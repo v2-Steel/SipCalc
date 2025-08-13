@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple SIP Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        a { display: block; margin: 10px 0; padding: 10px; background: #007bff; color: white; text-decoration: none; border-radius: 3px; }
+        a:hover { background: #0056b3; }
+        .status { margin: 20px 0; padding: 10px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <h1>Simple SIP Link Test</h1>
+    
+    <div class="status">
+        <strong>Status:</strong> <span id="status">Ready</span>
+    </div>
+    
+    <h2>Test SIP Links</h2>
+    <a href="uniform.sipmath">uniform.sipmath</a>
+    <a href="Stock_Returns.SIPmath">Stock_Returns.SIPmath</a>
+    
+    <h2>Test Deep Linking</h2>
+    <a href="index.html?sip=uniform.sipmath">Calculator + uniform.sipmath</a>
+    
+    <h2>Open Calculator</h2>
+    <a href="index.html">Open Calculator</a>
+    
+    <script>
+        // Simple status updates
+        document.addEventListener('click', function(e) {
+            if (e.target.tagName === 'A') {
+                const href = e.target.href;
+                if (href.includes('.sipmath') || href.includes('.SIPmath')) {
+                    document.getElementById('status').textContent = 'SIP link clicked: ' + href;
+                    console.log('Link clicked:', href);
+                }
+            }
+        });
+    </script>
+</body>
+</html> 

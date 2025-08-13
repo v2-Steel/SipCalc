@@ -1201,61 +1201,108 @@ function loadLibraryFromPopup() {
 }
 
 // Intercept same-origin links to SIP files and load inline instead of navigating
-(function setupSameOriginSipLinkInterceptor() {
-    document.addEventListener('click', function(e) {
-        const anchor = e.target && e.target.closest ? e.target.closest('a[href]') : null;
-        if (!anchor) return;
-        const href = anchor.getAttribute('href');
-        if (!href) return;
-        let resolved;
+function setupSipLinkInterceptor() {
+    function handleClick(e) {
         try {
-            resolved = new URL(href, window.location.href);
-        } catch (err) {
-            return;
+            // Basic validation
+            if (!e || !e.target) return;
+            
+            // Find the closest anchor tag
+            let anchor = e.target;
+            while (anchor && anchor.tagName !== 'A') {
+                anchor = anchor.parentElement;
+            }
+            if (!anchor || !anchor.href) return;
+            
+            const href = anchor.href;
+            if (!href) return;
+            
+            // Skip if it's a target="_blank" link
+            if (anchor.getAttribute('target') === '_blank') return;
+            
+            let resolved;
+            try {
+                resolved = new URL(href);
+            } catch (err) {
+                return; // Invalid URL, ignore
+            }
+            
+            const pathLower = (resolved.pathname || '').toLowerCase();
+            const looksLikeSip = pathLower.endsWith('.sipmath') || pathLower.endsWith('.json');
+            const sameOrigin = resolved.origin === window.location.origin;
+            
+            if (sameOrigin && looksLikeSip) {
+                console.log('Intercepting SIP link:', resolved.href);
+                e.preventDefault();
+                e.stopPropagation();
+                
+                loadLibraryFromUrlWithRetry(resolved.href)
+                    .then((libraryJson) => {
+                        console.log('Successfully loaded SIP from link:', resolved.href);
+                        processLibraryJson(libraryJson);
+                    })
+                    .catch((error) => {
+                        console.error('Failed to load SIP from link:', resolved.href, error);
+                        alert(error.message || 'Failed to load SIP from link.');
+                    });
+            }
+        } catch (error) {
+            console.error('Error in SIP link interceptor:', error);
         }
-        const pathLower = (resolved.pathname || '').toLowerCase();
-        const looksLikeSip = pathLower.endsWith('.sipmath') || pathLower.endsWith('.json');
-        const sameOrigin = resolved.origin === window.location.origin;
-        if (sameOrigin && looksLikeSip) {
-            e.preventDefault();
-            loadLibraryFromUrlWithRetry(resolved.href)
-                .then((libraryJson) => {
-                    processLibraryJson(libraryJson);
-                })
-                .catch((error) => {
-                    alert(error.message || 'Failed to load SIP from link.');
-                });
-        }
-    }, true);
-})();
+    }
+    
+    // Add the click listener
+    document.addEventListener('click', handleClick, true);
+    console.log('SIP link interceptor initialized');
+}
+
+// Initialize when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupSipLinkInterceptor);
+} else {
+    setupSipLinkInterceptor();
+}
 
 // Auto-load from URL parameter (?sip=...)
-(function setupSipUrlParamLoader() {
-    document.addEventListener('DOMContentLoaded', function() {
-        const params = new URLSearchParams(window.location.search);
-        const sipParam = params.get('sip');
-        if (!sipParam) return;
-        loadLibraryFromUrlWithRetry(sipParam)
-            .then((libraryJson) => {
-                processLibraryJson(libraryJson);
-            })
-            .catch((error) => {
-                console.warn('Failed to auto-load SIP from URL parameter:', error);
-                alert(error.message || 'Failed to auto-load SIP from URL parameter.');
-            });
-    });
-})();
+function setupSipUrlParamLoader() {
+    const params = new URLSearchParams(window.location.search);
+    const sipParam = params.get('sip');
+    if (!sipParam) return;
+    
+    console.log('Auto-loading SIP from URL parameter:', sipParam);
+    loadLibraryFromUrlWithRetry(sipParam)
+        .then((libraryJson) => {
+            console.log('Successfully auto-loaded SIP from URL parameter');
+            processLibraryJson(libraryJson);
+        })
+        .catch((error) => {
+            console.warn('Failed to auto-load SIP from URL parameter:', error);
+            // Don't show alert for auto-load failures, just log them
+        });
+}
+
+// Initialize URL parameter loader when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupSipUrlParamLoader);
+} else {
+    setupSipUrlParamLoader();
+}
 
 // New function to load SIP library from URL
 async function loadLibraryFromUrl(url) {
     try {
+        console.log('Loading library from URL:', url);
+        
         // Validate URL format (supports relative and absolute)
         const urlObj = new URL(url, window.location.href);
+        console.log('Resolved URL:', urlObj.href);
         
         // Check for common hosting platforms and adjust URL if needed
         const adjustedUrl = adjustUrlForHostingPlatform(urlObj.href);
+        console.log('Adjusted URL:', adjustedUrl);
         
         // Fetch the SIP file
+        console.log('Fetching from:', adjustedUrl);
         const response = await fetch(adjustedUrl, {
             method: 'GET',
             headers: {
@@ -1269,20 +1316,25 @@ async function loadLibraryFromUrl(url) {
         }
         
         const contentType = response.headers.get('content-type');
+        console.log('Content-Type:', contentType);
         if (!contentType || (!contentType.includes('application/json') && !contentType.includes('text/plain'))) {
             console.warn('Warning: Unexpected content type:', contentType);
         }
         
         const text = await response.text();
+        console.log('Response length:', text.length, 'characters');
         
         try {
             const libraryJson = JSON.parse(text);
+            console.log('Successfully parsed as JSON');
             return libraryJson;
         } catch (parseError) {
+            console.log('JSON parsing failed, trying SIPmath format');
             return parseSIPmathFormat(text);
         }
         
     } catch (error) {
+        console.error('Error in loadLibraryFromUrl:', error);
         if (error.name === 'AbortError') {
             throw new Error('Request timed out. Please check the URL and try again.');
         } else if (error.name === 'TypeError' && error.message.includes('fetch')) {
