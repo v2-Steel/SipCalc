@@ -1207,22 +1207,40 @@ function setupSipLinkInterceptor() {
             // Basic validation
             if (!e || !e.target) return;
             
+            // Debug logging for troubleshooting
+            console.log('Click event target:', e.target.tagName, e.target.className, e.target.id);
+            
+            // Skip if this is a form submission, button click, or input interaction
+            if (e.target.tagName === 'BUTTON' || 
+                e.target.tagName === 'INPUT' || 
+                e.target.tagName === 'SELECT' ||
+                e.target.tagName === 'TEXTAREA' ||
+                e.target.closest('form') ||
+                e.target.closest('.popup-content')) {
+                console.log('Skipping click - form/popup element');
+                return;
+            }
+            
             // Find the closest anchor tag
             let anchor = e.target;
             while (anchor && anchor.tagName !== 'A') {
                 anchor = anchor.parentElement;
+                if (!anchor) return; // No anchor found
             }
-            if (!anchor || !anchor.href) return;
             
-            const href = anchor.href;
-            if (!href) return;
+            if (!anchor || !anchor.href) return;
             
             // Skip if it's a target="_blank" link
             if (anchor.getAttribute('target') === '_blank') return;
             
+            // Skip if it's inside a popup or form
+            if (anchor.closest('.popup-content') || anchor.closest('form')) {
+                return;
+            }
+            
             let resolved;
             try {
-                resolved = new URL(href);
+                resolved = new URL(anchor.href);
             } catch (err) {
                 return; // Invalid URL, ignore
             }
