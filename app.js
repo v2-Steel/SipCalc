@@ -1288,6 +1288,33 @@ if (document.readyState === 'loading') {
     setupSipUrlParamLoader();
 }
 
+// Test fetch functionality
+function testFetch() {
+    console.log('Testing fetch functionality...');
+    console.log('fetch available:', typeof fetch !== 'undefined');
+    console.log('AbortSignal.timeout available:', typeof AbortSignal !== 'undefined' && AbortSignal.timeout);
+    
+    // Try a simple fetch to see if it works
+    fetch('./uniform.sipmath')
+        .then(response => {
+            console.log('Test fetch successful:', response.status, response.statusText);
+            return response.text();
+        })
+        .then(text => {
+            console.log('Test fetch content length:', text.length);
+        })
+        .catch(error => {
+            console.error('Test fetch failed:', error);
+        });
+}
+
+// Run fetch test when page loads
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', testFetch);
+} else {
+    testFetch();
+}
+
 // New function to load SIP library from URL
 async function loadLibraryFromUrl(url) {
     try {
@@ -1306,13 +1333,36 @@ async function loadLibraryFromUrl(url) {
         
         // Fetch the SIP file
         console.log('Fetching from:', adjustedUrl);
-        const response = await fetch(adjustedUrl, {
-            method: 'GET',
-            headers: {
-                'Accept': 'application/json, text/plain, */*',
-            },
-            signal: AbortSignal.timeout(30000)
-        });
+        
+        let response;
+        
+        // Try to use AbortSignal.timeout if available, otherwise use AbortController
+        if (typeof AbortSignal !== 'undefined' && AbortSignal.timeout) {
+            // Modern browsers support AbortSignal.timeout
+            response = await fetch(adjustedUrl, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json, text/plain, */*',
+                },
+                signal: AbortSignal.timeout(30000)
+            });
+        } else {
+            // Fallback for older browsers
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000);
+            
+            try {
+                response = await fetch(adjustedUrl, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json, text/plain, */*',
+                    },
+                    signal: controller.signal
+                });
+            } finally {
+                clearTimeout(timeoutId);
+            }
+        }
         
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status} - ${response.statusText}`);
