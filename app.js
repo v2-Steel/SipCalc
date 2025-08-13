@@ -1292,10 +1292,13 @@ if (document.readyState === 'loading') {
 async function loadLibraryFromUrl(url) {
     try {
         console.log('Loading library from URL:', url);
+        console.log('Current page URL:', window.location.href);
         
         // Validate URL format (supports relative and absolute)
         const urlObj = new URL(url, window.location.href);
         console.log('Resolved URL:', urlObj.href);
+        console.log('URL origin:', urlObj.origin);
+        console.log('Current origin:', window.location.origin);
         
         // Check for common hosting platforms and adjust URL if needed
         const adjustedUrl = adjustUrlForHostingPlatform(urlObj.href);
@@ -1335,12 +1338,20 @@ async function loadLibraryFromUrl(url) {
         
     } catch (error) {
         console.error('Error in loadLibraryFromUrl:', error);
+        console.error('Error details:', {
+            name: error.name,
+            message: error.message,
+            stack: error.stack
+        });
+        
         if (error.name === 'AbortError') {
             throw new Error('Request timed out. Please check the URL and try again.');
         } else if (error.name === 'TypeError' && error.message.includes('fetch')) {
-            throw new Error('Network error. Please check your internet connection and the URL.');
+            throw new Error(`Network error: ${error.message}. Please check your internet connection and the URL.`);
         } else if (error.name === 'TypeError' && error.message.includes('URL')) {
             throw new Error('Invalid URL format. Please enter a valid URL.');
+        } else if (error.message.includes('HTTP error')) {
+            throw new Error(`HTTP Error: ${error.message}`);
         } else {
             throw new Error(`Failed to load library: ${error.message}`);
         }
@@ -1350,6 +1361,11 @@ async function loadLibraryFromUrl(url) {
 // Function to adjust URLs for common hosting platforms
 function adjustUrlForHostingPlatform(url) {
     const urlObj = new URL(url, window.location.href);
+    
+    // For same-origin relative URLs, return as-is
+    if (urlObj.origin === window.location.origin) {
+        return urlObj.href;
+    }
     
     // GitHub raw content
     if (urlObj.hostname === 'github.com') {
