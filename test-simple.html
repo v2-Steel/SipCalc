@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Test - No eval, No preventDefault</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 20px; border: 1px solid #ccc; border-radius: 5px; }
+        button { margin: 10px; padding: 10px 15px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .result { margin: 10px 0; padding: 10px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <h1>Simple Test - No eval, No preventDefault</h1>
+    
+    <div class="test-section">
+        <h2>Test 1: Basic Functionality</h2>
+        <button id="testBtn">Test Button</button>
+        <div id="result1" class="result">Click the button to test</div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test 2: Safe Comparison (No eval)</h2>
+        <input type="number" id="num1" placeholder="Number 1" value="5">
+        <select id="operator">
+            <option value=">">&gt;</option>
+            <option value="<">&lt;</option>
+            <option value=">=">&gt;=</option>
+            <option value="<=">&lt;=</option>
+            <option value="==">=</option>
+            <option value="!=">!=</option>
+        </select>
+        <input type="number" id="num2" placeholder="Number 2" value="3">
+        <button id="compareBtn">Compare</button>
+        <div id="result2" class="result">Result will appear here</div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test 3: URL Loading</h2>
+        <input type="url" id="urlInput" placeholder="Enter URL" value="uniform.sipmath">
+        <button id="loadBtn">Load URL</button>
+        <div id="result3" class="result">URL loading result will appear here</div>
+    </div>
+    
+    <script>
+        // Safe comparison function (replaces eval)
+        function safeCompare(value1, operator, value2) {
+            const num1 = parseFloat(value1);
+            const num2 = parseFloat(value2);
+            
+            if (isNaN(num1) || isNaN(num2)) return false;
+            
+            switch(operator) {
+                case '>': return num1 > num2;
+                case '<': return num1 < num2;
+                case '>=': return num1 >= num2;
+                case '<=': return num1 <= num2;
+                case '==': return num1 === num2;
+                case '!=': return num1 !== num2;
+                default: return false;
+            }
+        }
+        
+        // Simple URL loader (no preventDefault issues)
+        async function loadUrl(url) {
+            try {
+                console.log('Loading URL:', url);
+                const response = await fetch(url);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const text = await response.text();
+                console.log('Successfully loaded:', text.length, 'characters');
+                return text;
+            } catch (error) {
+                console.error('Error loading URL:', error);
+                throw error;
+            }
+        }
+        
+        // Event listeners
+        document.getElementById('testBtn').addEventListener('click', function() {
+            document.getElementById('result1').textContent = 'Button clicked successfully! No preventDefault errors.';
+        });
+        
+        document.getElementById('compareBtn').addEventListener('click', function() {
+            const num1 = document.getElementById('num1').value;
+            const operator = document.getElementById('operator').value;
+            const num2 = document.getElementById('num2').value;
+            
+            const result = safeCompare(num1, operator, num2);
+            document.getElementById('result2').textContent = `${num1} ${operator} ${num2} = ${result}`;
+        });
+        
+        document.getElementById('loadBtn').addEventListener('click', async function() {
+            const url = document.getElementById('urlInput').value;
+            const resultDiv = document.getElementById('result3');
+            
+            try {
+                resultDiv.textContent = 'Loading...';
+                const content = await loadUrl(url);
+                resultDiv.textContent = `Successfully loaded ${content.length} characters from ${url}`;
+            } catch (error) {
+                resultDiv.textContent = `Error: ${error.message}`;
+            }
+        });
+        
+        console.log('Simple test page loaded successfully');
+        console.log('No eval() calls, no preventDefault issues');
+    </script>
+</body>
+</html> 
