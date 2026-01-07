@@ -1171,21 +1171,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const fileName = this.files[0]?.name || "";
         document.getElementById("selectedFileName").innerHTML = fileName ? `Selected: ${fileName}` : "";
     });
-    
-    // Real-time validation for URL input
-    const urlInput = document.getElementById("urlInput");
-    if (urlInput) {
-        urlInput.addEventListener('input', function() {
-            const url = this.value.trim().toLowerCase();
-            if (url && !url.endsWith('.sipmath')) {
-                this.setCustomValidity('URL must end with .SIPmath');
-                this.style.borderColor = '#dc3545'; // Red border for invalid
-            } else {
-                this.setCustomValidity('');
-                this.style.borderColor = ''; // Reset to default
-            }
-        });
-    }
 });
 
 
@@ -1220,14 +1205,6 @@ function loadLibraryFromPopup() {
             alert('Please enter a URL.');
             return;
         }
-        
-        // Validate that URL ends with .SIPmath (case-insensitive)
-        const urlLower = rawUrl.toLowerCase();
-        if (!urlLower.endsWith('.sipmath')) {
-            alert('The URL must end with .SIPmath. Please enter a valid SIPmath library URL.');
-            return;
-        }
-        
         loadLibraryFromUrlWithRetry(rawUrl)
             .then((libraryJson) => {
                 processLibraryJson(libraryJson);
@@ -1285,8 +1262,7 @@ function setupSipLinkInterceptor() {
             }
             
             const pathLower = (resolved.pathname || '').toLowerCase();
-            // Only accept .SIPmath files (case-insensitive)
-            const looksLikeSip = pathLower.endsWith('.sipmath');
+            const looksLikeSip = pathLower.endsWith('.sipmath') || pathLower.endsWith('.json');
             const sameOrigin = resolved.origin === window.location.origin;
             
             if (sameOrigin && looksLikeSip) {
@@ -1326,13 +1302,6 @@ function setupSipUrlParamLoader() {
     const params = new URLSearchParams(window.location.search);
     const sipParam = params.get('sip');
     if (!sipParam) return;
-    
-    // Validate that URL ends with .SIPmath (case-insensitive)
-    const urlLower = sipParam.toLowerCase();
-    if (!urlLower.endsWith('.sipmath')) {
-        console.warn('URL parameter must end with .SIPmath. Ignoring:', sipParam);
-        return;
-    }
     
     console.log('Auto-loading SIP from URL parameter:', sipParam);
     loadLibraryFromUrlWithRetry(sipParam)
