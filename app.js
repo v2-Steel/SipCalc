@@ -111,7 +111,7 @@ var chartTitles = {}
 var numBins = 20
 
 function fileUploaded(num) {
-    event.preventDefault();
+    
     var file_to_read = document.getElementById("fileInput" + num).files[0];
     var fileread = new FileReader();
     fileread.onload = function (e) {
