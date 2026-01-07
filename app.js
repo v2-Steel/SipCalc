@@ -111,133 +111,31 @@ var chartTitles = {}
 var numBins = 20
 
 function fileUploaded(num) {
-    
-    var file_to_read = document.getElementById("fileInput" + num).files[0];
-    var fileread = new FileReader();
-    fileread.onload = function (e) {
-        var str = e.target.result;
-        var parsed = JSON.parse(str);
-        distStorage[num.toString()] = parsed;
-        let name = parsed["sips"][0]["name"];
-        document.getElementById("name" + num).innerHTML = name;
-        document.getElementById("name" + num).style.opacity = "1";
-        chartTitles[num.toString()] = name
-        var func = parsed["sips"][0]["function"]
-        var labels = []
-        var density = []
-        if (func == "SIP_Array") {
-            var resultValues = parsed["sips"][0]["arguments"]["value"]
-            let max = Math.max(...resultValues)
-            for (let i = 0; i < numBins; i++) {
-                density.push(max)
-            }
-            for (let i = 0; i < numBins; i++) {
-                labels.push(i)
-            }
-            const cfg = {
-                type: "bar",
-                data: {
-                    labels: labels, //X-axis labels
-                    datasets: [{
-                        data: density, //Y-axis values
-                        backgroundColor: 'rgba(37, 93, 150, 1)'
-                    }]
-                },
-                options: {
-                    title: {
-                        text: name,
-                        display: false,
-                    },
-                    legend: {
-                        display: false
-                    },
-                    scales: {
-                        yAxes: [{
-                            scaleLabel: {
-                                display: false
-                            },
-                            ticks: {
-                                min: 0,
-                                max: max,
-                                display: false,
-                            }
-                        }],
-                        xAxes: [{
-                            display: false,
-                            ticks: {
-                                min: 0,
-                                max: 100,
-                                maxTicksLimit: 5,
-                            },
-                        }]
-                    },
-                    elements: {
-                        point: {
-                            radius: 0
-                        }
-                    },
-                    tooltips: {enabled: false},
-                    hover: {mode: null},
-                }
-            }
-            chartList[num.toString()] = cfg
-            var myChart = document.getElementById('pdfChart' + num);
-            let chart1 = new Chart(myChart, cfg)
-
-        } else {
-            density = parsed["sips"][0]["metadata"]["density"];
-            for (let i = 0; i < numBins; i++) {
-                labels.push(i)
-            }
-            const cfg = {
-                type: "bar",
-                data: {
-                    labels: labels, //X-axis labels
-                    datasets: [{
-                        data: density, //Y-axis values
-                        backgroundColor: 'rgba(37, 93, 150, 1)'
-                    }]
-                },
-                options: {
-                    title: {
-                        text: name,
-                        display: false
-                    },
-                    legend: {
-                        display: false
-                    },
-                    scales: {
-                        yAxes: [{
-                            scaleLabel: {
-                                display: false
-                            },
-                            ticks: {
-                                display: false,
-                            }
-                        }],
-                        xAxes: [{
-                            display: false,
-                            ticks: {
-                                min: 0,
-                                max: 100,
-                                maxTicksLimit: 5,
-                            },
-                        }]
-                    },
-                    elements: {
-                        point: {
-                            radius: 0
-                        }
-                    },
-                    tooltips: {enabled: false},
-                    hover: {mode: null},
-                }
-            }
-            chartList[num.toString()] = cfg
-            var myChart = document.getElementById('pdfChart' + num);
-            let chart1 = new Chart(myChart, cfg)
-        }
+    const file_to_read = document.getElementById("fileInput" + num).files[0];
+    if (!file_to_read) {
+        console.error("No file found for input " + num);
+        return;
     }
+    const fileread = new FileReader();
+    fileread.onerror = function(e) {
+        console.error("Error reading file:", e);
+    };
+    fileread.onload = function (e) {
+        try {
+            const str = e.target.result;
+            const parsed = JSON.parse(str);
+            
+            if (!parsed || !parsed.sips || !parsed.sips[0]) {
+                console.error("Invalid file structure - missing sips array");
+                return;
+            }
+            
+            processSipDataDirectly(num, parsed);
+        } catch (error) {
+            console.error("Error processing file for input " + num + ":", error);
+            alert("Error processing file: " + error.message);
+        }
+    };
     fileread.readAsText(file_to_read);
 }
 
@@ -1220,11 +1118,7 @@ function loadLibraryFromPopup() {
 function setupSipLinkInterceptor() {
     function handleClick(e) {
         try {
-            // Basic validation
             if (!e || !e.target) return;
-            
-            // Debug logging for troubleshooting
-            console.log('Click event target:', e.target.tagName, e.target.className, e.target.id);
             
             // Skip if this is a form submission, button click, or input interaction
             if (e.target.tagName === 'BUTTON' || 
@@ -1233,7 +1127,6 @@ function setupSipLinkInterceptor() {
                 e.target.tagName === 'TEXTAREA' ||
                 e.target.closest('form') ||
                 e.target.closest('.popup-content')) {
-                console.log('Skipping click - form/popup element');
                 return;
             }
             
@@ -1241,24 +1134,18 @@ function setupSipLinkInterceptor() {
             let anchor = e.target;
             while (anchor && anchor.tagName !== 'A') {
                 anchor = anchor.parentElement;
-                if (!anchor) return; // No anchor found
+                if (!anchor) return;
             }
             
             if (!anchor || !anchor.href) return;
-            
-            // Skip if it's a target="_blank" link
             if (anchor.getAttribute('target') === '_blank') return;
-            
-            // Skip if it's inside a popup or form
-            if (anchor.closest('.popup-content') || anchor.closest('form')) {
-                return;
-            }
+            if (anchor.closest('.popup-content') || anchor.closest('form')) return;
             
             let resolved;
             try {
                 resolved = new URL(anchor.href);
             } catch (err) {
-                return; // Invalid URL, ignore
+                return;
             }
             
             const pathLower = (resolved.pathname || '').toLowerCase();
@@ -1266,17 +1153,15 @@ function setupSipLinkInterceptor() {
             const sameOrigin = resolved.origin === window.location.origin;
             
             if (sameOrigin && looksLikeSip) {
-                console.log('Intercepting SIP link:', resolved.href);
                 e.preventDefault();
                 e.stopPropagation();
                 
                 loadLibraryFromUrlWithRetry(resolved.href)
                     .then((libraryJson) => {
-                        console.log('Successfully loaded SIP from link:', resolved.href);
                         processLibraryJson(libraryJson);
                     })
                     .catch((error) => {
-                        console.error('Failed to load SIP from link:', resolved.href, error);
+                        console.error('Failed to load SIP from link:', error);
                         alert(error.message || 'Failed to load SIP from link.');
                     });
             }
@@ -1285,16 +1170,7 @@ function setupSipLinkInterceptor() {
         }
     }
     
-    // Add the click listener
     document.addEventListener('click', handleClick, true);
-    console.log('SIP link interceptor initialized');
-}
-
-// Initialize when DOM is ready
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', setupSipLinkInterceptor);
-} else {
-    setupSipLinkInterceptor();
 }
 
 // Auto-load from URL parameter (?sip=...)
@@ -1303,40 +1179,23 @@ function setupSipUrlParamLoader() {
     const sipParam = params.get('sip');
     if (!sipParam) return;
     
-    console.log('Auto-loading SIP from URL parameter:', sipParam);
     loadLibraryFromUrlWithRetry(sipParam)
         .then((libraryJson) => {
-            console.log('Successfully auto-loaded SIP from URL parameter');
             processLibraryJson(libraryJson);
         })
         .catch((error) => {
-            console.warn('Failed to auto-load SIP from URL parameter:', error);
-            // Don't show alert for auto-load failures, just log them
+            console.error('Failed to auto-load SIP from URL parameter:', error);
         });
 }
 
-// Initialize URL parameter loader when DOM is ready
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', setupSipUrlParamLoader);
-} else {
-    setupSipUrlParamLoader();
-}
-
-// Setup event listeners for popup elements (CSP-compliant)
+// Setup event listeners for popup elements
 function setupPopupEventListeners() {
-    // Load Library button
     const loadLibraryBtn = document.getElementById('loadLibraryBtn');
-    if (loadLibraryBtn) {
-        loadLibraryBtn.addEventListener('click', showLibraryPopup);
-    }
+    if (loadLibraryBtn) loadLibraryBtn.addEventListener('click', showLibraryPopup);
     
-    // Close popup button
     const closePopupBtn = document.getElementById('closePopupBtn');
-    if (closePopupBtn) {
-        closePopupBtn.addEventListener('click', hideLibraryPopup);
-    }
+    if (closePopupBtn) closePopupBtn.addEventListener('click', hideLibraryPopup);
     
-    // Choose file button
     const chooseFileBtn = document.getElementById('chooseFileBtn');
     if (chooseFileBtn) {
         chooseFileBtn.addEventListener('click', () => {
@@ -1344,128 +1203,42 @@ function setupPopupEventListeners() {
         });
     }
     
-    // Cancel button
     const cancelBtn = document.getElementById('cancelBtn');
-    if (cancelBtn) {
-        cancelBtn.addEventListener('click', hideLibraryPopup);
-    }
+    if (cancelBtn) cancelBtn.addEventListener('click', hideLibraryPopup);
     
-    // Load button
     const loadBtn = document.getElementById('loadBtn');
-    if (loadBtn) {
-        loadBtn.addEventListener('click', loadLibraryFromPopup);
-    }
+    if (loadBtn) loadBtn.addEventListener('click', loadLibraryFromPopup);
 }
 
-// Initialize popup event listeners when DOM is ready
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', setupPopupEventListeners);
-} else {
+// Consolidated DOM ready initialization
+function initializeApp() {
+    setupSipLinkInterceptor();
+    setupSipUrlParamLoader();
     setupPopupEventListeners();
 }
 
-// Test fetch functionality with multiple approaches
-function testFetch() {
-    console.log('Testing fetch functionality...');
-    console.log('fetch available:', typeof fetch !== 'undefined');
-    console.log('AbortSignal.timeout available:', typeof AbortSignal !== 'undefined' && AbortSignal.timeout);
-    
-    // Test 1: Basic fetch
-    console.log('Test 1: Basic fetch');
-    fetch('./uniform.sipmath')
-        .then(response => {
-            console.log('Test 1 successful:', response.status, response.statusText);
-            return response.text();
-        })
-        .then(text => {
-            console.log('Test 1 content length:', text.length);
-        })
-        .catch(error => {
-            console.error('Test 1 failed:', error);
-            
-            // Test 2: Try with different headers
-            console.log('Test 2: Fetch with different headers');
-            fetch('./uniform.sipmath', {
-                method: 'GET',
-                headers: {
-                    'Accept': '*/*',
-                    'Cache-Control': 'no-cache'
-                }
-            })
-            .then(response => {
-                console.log('Test 2 successful:', response.status, response.statusText);
-                return response.text();
-            })
-            .then(text => {
-                console.log('Test 2 content length:', text.length);
-            })
-            .catch(error2 => {
-                console.error('Test 2 failed:', error2);
-                
-                // Test 3: Try absolute path
-                console.log('Test 3: Absolute path fetch');
-                const absoluteUrl = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '/') + 'uniform.sipmath';
-                console.log('Trying absolute URL:', absoluteUrl);
-                
-                fetch(absoluteUrl)
-                .then(response => {
-                    console.log('Test 3 successful:', response.status, response.statusText);
-                    return response.text();
-                })
-                .then(text => {
-                    console.log('Test 3 content length:', text.length);
-                })
-                .catch(error3 => {
-                    console.error('Test 3 failed:', error3);
-                    console.log('All fetch tests failed. Consider using XMLHttpRequest fallback.');
-                });
-            });
-        });
-}
-
-// Run fetch test when page loads
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', testFetch);
+    document.addEventListener('DOMContentLoaded', initializeApp);
 } else {
-    testFetch();
+    initializeApp();
 }
 
-// New function to load SIP library from URL
+// Function to load SIP library from URL
 async function loadLibraryFromUrl(url) {
     try {
-        console.log('Loading library from URL:', url);
-        console.log('Current page URL:', window.location.href);
-        
         // Validate URL format (supports relative and absolute)
         const urlObj = new URL(url, window.location.href);
-        console.log('Resolved URL:', urlObj.href);
-        console.log('URL origin:', urlObj.origin);
-        console.log('Current origin:', window.location.origin);
         
-        // Check for common hosting platforms and adjust URL if needed
-        const adjustedUrl = adjustUrlForHostingPlatform(urlObj.href);
-        console.log('Adjusted URL:', adjustedUrl);
-        
-        // Try fetch first, then fallback to XMLHttpRequest
-        try {
-            return await loadWithFetch(adjustedUrl);
-        } catch (fetchError) {
-            console.log('Fetch failed, trying XMLHttpRequest:', fetchError.message);
-            return await loadWithXMLHttpRequest(adjustedUrl);
+        // For same-origin URLs, return as-is
+        if (urlObj.origin !== window.location.origin) {
+            throw new Error('Only same-origin URLs are supported.');
         }
         
-    } catch (error) {
-        console.error('Error in loadLibraryFromUrl:', error);
-        console.error('Error details:', {
-            name: error.name,
-            message: error.message,
-            stack: error.stack
-        });
+        return await loadWithFetch(urlObj.href);
         
+    } catch (error) {
         if (error.name === 'AbortError') {
             throw new Error('Request timed out. Please check the URL and try again.');
-        } else if (error.name === 'TypeError' && error.message.includes('fetch')) {
-            throw new Error(`Network error: ${error.message}. Please check your internet connection and the URL.`);
         } else if (error.name === 'TypeError' && error.message.includes('URL')) {
             throw new Error('Invalid URL format. Please enter a valid URL.');
         } else if (error.message.includes('HTTP error')) {
@@ -1478,13 +1251,10 @@ async function loadLibraryFromUrl(url) {
 
 // Load using fetch API
 async function loadWithFetch(url) {
-    console.log('Attempting fetch from:', url);
-    
     let response;
     
     // Try to use AbortSignal.timeout if available, otherwise use AbortController
     if (typeof AbortSignal !== 'undefined' && AbortSignal.timeout) {
-        // Modern browsers support AbortSignal.timeout
         response = await fetch(url, {
             method: 'GET',
             headers: {
@@ -1514,154 +1284,151 @@ async function loadWithFetch(url) {
         throw new Error(`HTTP error! status: ${response.status} - ${response.statusText}`);
     }
     
-    const contentType = response.headers.get('content-type');
-    console.log('Content-Type:', contentType);
-    if (!contentType || (!contentType.includes('application/json') && !contentType.includes('text/plain'))) {
-        console.warn('Warning: Unexpected content type:', contentType);
-    }
-    
     const text = await response.text();
-    console.log('Response length:', text.length, 'characters');
-    
-    try {
-        const libraryJson = JSON.parse(text);
-        console.log('Successfully parsed as JSON');
-        return libraryJson;
-    } catch (parseError) {
-        console.log('JSON parsing failed, trying SIPmath format');
-        return parseSIPmathFormat(text);
-    }
+    return JSON.parse(text);
 }
 
-// Load using XMLHttpRequest (fallback)
-function loadWithXMLHttpRequest(url) {
-    return new Promise((resolve, reject) => {
-        console.log('Attempting XMLHttpRequest from:', url);
-        
-        const xhr = new XMLHttpRequest();
-        const timeout = setTimeout(() => {
-            xhr.abort();
-            reject(new Error('Request timed out'));
-        }, 30000);
-        
-        xhr.onreadystatechange = function() {
-            if (xhr.readyState === 4) {
-                clearTimeout(timeout);
-                
-                if (xhr.status === 200) {
-                    console.log('XMLHttpRequest successful:', xhr.status, xhr.statusText);
-                    console.log('Content-Type:', xhr.getResponseHeader('content-type'));
-                    console.log('Response length:', xhr.responseText.length, 'characters');
-                    
-                    try {
-                        const libraryJson = JSON.parse(xhr.responseText);
-                        console.log('Successfully parsed as JSON via XMLHttpRequest');
-                        resolve(libraryJson);
-                    } catch (parseError) {
-                        console.log('JSON parsing failed, trying SIPmath format via XMLHttpRequest');
-                        resolve(parseSIPmathFormat(xhr.responseText));
+// Load library from URL (simplified for same-origin only)
+async function loadLibraryFromUrlWithRetry(url) {
+    return await loadLibraryFromUrl(url);
+}
+
+// Helper function to create chart configuration
+function createChartConfig(name, density, maxValue) {
+    const labels = [];
+    for (let i = 0; i < numBins; i++) {
+        labels.push(i);
+    }
+    
+    return {
+        type: "bar",
+        data: {
+            labels: labels,
+            datasets: [{
+                data: density,
+                backgroundColor: 'rgba(37, 93, 150, 1)'
+            }]
+        },
+        options: {
+            title: {
+                text: name,
+                display: false
+            },
+            legend: {
+                display: false
+            },
+            scales: {
+                yAxes: [{
+                    scaleLabel: {
+                        display: false
+                    },
+                    ticks: maxValue !== undefined ? {
+                        min: 0,
+                        max: maxValue,
+                        display: false
+                    } : {
+                        display: false
                     }
-                } else {
-                    reject(new Error(`HTTP error! status: ${xhr.status} - ${xhr.statusText}`));
+                }],
+                xAxes: [{
+                    display: false,
+                    ticks: {
+                        min: 0,
+                        max: 100,
+                        maxTicksLimit: 5
+                    }
+                }]
+            },
+            elements: {
+                point: {
+                    radius: 0
                 }
-            }
-        };
-        
-        xhr.onerror = function() {
-            clearTimeout(timeout);
-            reject(new Error('Network error occurred'));
-        };
-        
-        xhr.ontimeout = function() {
-            clearTimeout(timeout);
-            reject(new Error('Request timed out'));
-        };
-        
-        xhr.open('GET', url, true);
-        xhr.setRequestHeader('Accept', 'application/json, text/plain, */*');
-        xhr.send();
-    });
-}
-
-// Function to adjust URLs for common hosting platforms
-function adjustUrlForHostingPlatform(url) {
-    const urlObj = new URL(url, window.location.href);
-    
-    // For same-origin relative URLs, return as-is
-    if (urlObj.origin === window.location.origin) {
-        return urlObj.href;
-    }
-    
-    // GitHub raw content
-    if (urlObj.hostname === 'github.com') {
-        return url.replace('github.com', 'raw.githubusercontent.com').replace('/blob/', '/');
-    }
-    
-    // GitLab raw content
-    if (urlObj.hostname === 'gitlab.com') {
-        return url.replace('/blob/', '/raw/');
-    }
-    
-    // Dropbox direct link
-    if (urlObj.hostname === 'www.dropbox.com') {
-        return url.replace('www.dropbox.com', 'dl.dropboxusercontent.com');
-    }
-    
-    // Google Drive direct link (basic support)
-    if (urlObj.hostname === 'drive.google.com' && urlObj.pathname.includes('/file/d/')) {
-        const fileId = urlObj.pathname.match(/\/file\/d\/([^\/]+)/)?.[1];
-        if (fileId) {
-            return `https://drive.google.com/uc?export=download&id=${fileId}`;
+            },
+            tooltips: {enabled: false},
+            hover: {mode: null}
         }
-    }
-    
-    // Return original URL if no adjustments needed
-    return urlObj.href;
+    };
 }
 
-// Enhanced error handling with retry logic
-async function loadLibraryFromUrlWithRetry(url, maxRetries = 2) {
-    let lastError;
-    
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-        try {
-            return await loadLibraryFromUrl(url);
-        } catch (error) {
-            lastError = error;
-            console.warn(`Attempt ${attempt} failed:`, error.message);
-            
-            if (attempt < maxRetries) {
-                // Wait before retrying (exponential backoff)
-                await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
-            }
-        }
+// Helper function to create and render chart
+function createChartOnCanvas(num, cfg) {
+    const myChart = document.getElementById('pdfChart' + num);
+    if (!myChart) {
+        console.error("Chart element pdfChart" + num + " not found!");
+        return;
     }
     
-    throw lastError;
-}
-
-// Function to parse SIPmath format (if needed)
-function parseSIPmathFormat(text) {
-    // This is a basic implementation - you may need to enhance it based on your SIPmath format
+    if (myChart.chart) {
+        myChart.chart.destroy();
+    }
+    myChart.width = myChart.width;
+    
     try {
-        // Try to extract JSON from SIPmath format
-        const jsonMatch = text.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-            return JSON.parse(jsonMatch[0]);
+        const chart1 = new Chart(myChart, cfg);
+        myChart.chart = chart1;
+    } catch (chartError) {
+        console.error("Error creating chart for " + num + ":", chartError);
+    }
+}
+
+// Process SIP data directly without going through file reading
+function processSipDataDirectly(num, parsed) {
+    try {
+        if (!parsed || !parsed.sips || !parsed.sips[0]) {
+            console.error("Invalid data structure - missing sips array");
+            return;
         }
         
-        // If no JSON found, try to parse as plain SIPmath
-        // This would need to be customized based on your specific SIPmath format
-        throw new Error('SIPmath format parsing not yet implemented for this format');
+        // Show the chart container
+        const containerMap = {
+            1: "one", 2: "two", 3: "three", 4: "four", 5: "five", 6: "six"
+        };
+        const containerId = containerMap[num];
+        if (containerId) {
+            document.getElementById(containerId).style.marginTop = "1vw";
+            document.getElementById("pdfChart" + num).style.display = "block";
+        }
+        
+        // Store the data
+        distStorage[num.toString()] = parsed;
+        const name = parsed["sips"][0]["name"];
+        document.getElementById("name" + num).innerHTML = name;
+        document.getElementById("name" + num).style.opacity = "1";
+        chartTitles[num.toString()] = name;
+        
+        const func = parsed["sips"][0]["function"];
+        let density = [];
+        let maxValue;
+        
+        if (func == "SIP_Array") {
+            const resultValues = parsed["sips"][0]["arguments"]["value"];
+            if (!resultValues || resultValues.length === 0) {
+                console.error("No result values found in SIP_Array");
+                return;
+            }
+            maxValue = Math.max(...resultValues);
+            for (let i = 0; i < numBins; i++) {
+                density.push(maxValue);
+            }
+        } else {
+            density = parsed["sips"][0]["metadata"]["density"];
+            if (!density || density.length === 0) {
+                console.error("No density data found in metadata");
+                return;
+            }
+        }
+        
+        const cfg = createChartConfig(name, density, maxValue);
+        chartList[num.toString()] = cfg;
+        createChartOnCanvas(num, cfg);
         
     } catch (error) {
-        throw new Error('Unable to parse the file format. Please ensure it\'s a valid SIP library file.');
+        console.error("Error processing SIP data directly for input " + num + ":", error);
+        alert("Error processing SIP data: " + error.message);
     }
 }
 
 function processLibraryJson(libraryJson) {
-    console.log(libraryJson);
-
     const rng = libraryJson.U01.rng;
     const copula = libraryJson.U01.copula;
     const dateCreated = libraryJson.dateCreated || new Date().toISOString();
@@ -1680,27 +1447,13 @@ function processLibraryJson(libraryJson) {
             globalVariables: globalVariables,
             sips: [sip]
         };
-        console.log(singleSIP)
-    
-        // Convert to blob or file, depending on how your calculator handles upload
-        const blob = new Blob([JSON.stringify(singleSIP, null, 2)], { type: 'application/json' });
-        const file = new File([blob], `sip_${i + 1}.json`, { type: 'application/json' });
-    
-        // transferring the files, as if the user uploaded each SIP in the library to a key 1 - n
-        const dataTransfer = new DataTransfer();
-        dataTransfer.items.add(file);
-        const input = document.getElementById('fileInput' + (i+1));
-        input.files = dataTransfer.files;
-    
-        // Run the upload handler
-        handleFileUpload(i+1);
+        processSipDataDirectly(i + 1, singleSIP);
     });
 }
 
-// Keep the old event listener for backward compatibility, but it's no longer used
+// Keep the old event listener for backward compatibility
 document.getElementById("copulaInput").addEventListener("change", () => {
     // This is now handled by the popup, but keeping for compatibility
-    console.log("Legacy copulaInput handler - use popup instead");
 });
 
 
